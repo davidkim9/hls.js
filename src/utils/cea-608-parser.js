@@ -677,10 +677,6 @@ class Cea608Channel
         }
         var screen = this.writeScreen === this.displayedMemory ? 'DISP' : 'NON_DISP';
         logger.log('INFO', screen + ': ' + this.writeScreen.getDisplayText(true));
-        if (this.mode === 'MODE_PAINT-ON' || this.mode === 'MODE_ROLL-UP') {
-            logger.log('TEXT', 'DISPLAYED: ' + this.displayedMemory.getDisplayText(true));
-            this.outputDataUpdate();
-        }
     }
 
     ccRCL() { // Resume Caption Loading (switch mode to Pop On)
@@ -715,6 +711,7 @@ class Cea608Channel
 
     ccRU(nrRows) { //Roll-Up Captions-2,3,or 4 Rows
         logger.log('INFO', 'RU(' + nrRows +') - Roll Up');
+        this.outputDataUpdate();
         this.writeScreen = this.displayedMemory;
         this.setMode('MODE_ROLL-UP');
         this.writeScreen.setRollUpRows(nrRows);
@@ -742,6 +739,9 @@ class Cea608Channel
 
     ccEDM() { // Erase Displayed Memory
         logger.log('INFO', 'EDM - Erase Displayed Memory');
+        if (this.mode === 'MODE_PAINT-ON' || this.mode === 'MODE_ROLL-UP') {
+            this.outputDataUpdate();
+        }
         this.displayedMemory.reset();
         this.outputDataUpdate();
     }
@@ -803,6 +803,10 @@ class Cea608Channel
             } else {
                 if (!this.displayedMemory.equals(this.lastOutputScreen)) {
                     if (this.outputFilter.newCue) {
+                        if (this.mode === 'MODE_ROLL-UP') {
+                            // Adding a small overlap time will help with the roll up effect in VTTCue
+                            t = this.cueStartTime + Math.max(0.5, t - this.cueStartTime);
+                        }
                         this.outputFilter.newCue(this.cueStartTime, t, this.lastOutputScreen);
                     }
                     this.cueStartTime = this.displayedMemory.isEmpty() ? null : t;
