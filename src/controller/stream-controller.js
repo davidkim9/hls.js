@@ -1429,18 +1429,13 @@ _checkBuffer() {
         // only adjust currentTime if different from startPosition or if startPosition not buffered
         // at that stage, there should be only one buffered range, as we reach that code after first fragment has been buffered
         let startPosition = media.seeking ? currentTime : this.startPosition,
-            startPositionBuffered = BufferHelper.isBuffered(mediaBuffer,startPosition),
-            firstbufferedPosition = buffered.start(0),
-            startNotBufferedButClose = !startPositionBuffered && (Math.abs(startPosition-firstbufferedPosition) < config.maxSeekHole);
-        // if currentTime not matching with expected startPosition or startPosition not buffered but close to first buffered
-        if (currentTime !== startPosition || startNotBufferedButClose) {
-          logger.log(`target start position:${startPosition}`);
-          // if startPosition not buffered, let's seek to buffered.start(0)
-          if(startNotBufferedButClose) {
-            startPosition = firstbufferedPosition;
-            logger.log(`target start position not buffered, seek to buffered.start(0) ${startPosition}`);
+            startPositionBuffered = BufferHelper.isBuffered(mediaBuffer,startPosition);
+        if (currentTime !== startPosition || !startPositionBuffered) {
+          if(!startPositionBuffered) {
+            // Update startPosition to the first buffer start because buffered.start(0) can be greater than 0
+            let firstbufferedPosition = buffered.start(0);
+            startPosition = Math.max(startPosition, firstbufferedPosition);
           }
-          logger.log(`adjust currentTime from ${currentTime} to ${startPosition}`);
           media.currentTime = startPosition;
         }
       } else if (this.immediateSwitch) {
@@ -1484,6 +1479,11 @@ _checkBuffer() {
                   this.stallReported = true;
                   logger.warn(`playback stalling in low buffer @${currentTime}`);
                   hls.trigger(Event.ERROR, {type: ErrorTypes.MEDIA_ERROR, details: ErrorDetails.BUFFER_STALLED_ERROR, fatal: false, buffer : bufferLen});
+                }
+                let firstbufferedPosition = buffered.start(0);
+                if(currentTime < firstbufferedPosition) {
+                  // seek to the first buffer position if currentTime is less than the first buffer
+                  media.currentTime = currentTime = firstbufferedPosition;
                 }
                 // if buffer len is below threshold, try to jump to start of next buffer range if close
                 // no buffer available @ currentTime, check if next buffer is close (within a config.maxSeekHole second range)
