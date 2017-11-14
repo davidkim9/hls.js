@@ -1431,11 +1431,14 @@ _checkBuffer() {
         let startPosition = media.seeking ? currentTime : this.startPosition,
             startPositionBuffered = BufferHelper.isBuffered(mediaBuffer,startPosition);
         if (currentTime !== startPosition || !startPositionBuffered) {
+          logger.log(`target start position:${startPosition}`);
           if(!startPositionBuffered) {
             // Update startPosition to the first buffer start because buffered.start(0) can be greater than 0
             let firstbufferedPosition = buffered.start(0);
             startPosition = Math.max(startPosition, firstbufferedPosition);
+            logger.log(`target start position not buffered, seek to buffered.start(0) ${startPosition}`);
           }
+          logger.log(`adjust currentTime from ${currentTime} to ${startPosition}`);
           media.currentTime = startPosition;
         }
       } else if (this.immediateSwitch) {
@@ -1483,6 +1486,7 @@ _checkBuffer() {
                 let firstbufferedPosition = buffered.start(0);
                 if(currentTime < firstbufferedPosition) {
                   // seek to the first buffer position if currentTime is less than the first buffer
+                  logger.log(`adjust currentTime from ${currentTime} to buffered.start(0) ${firstbufferedPosition}`);
                   media.currentTime = currentTime = firstbufferedPosition;
                 }
                 // if buffer len is below threshold, try to jump to start of next buffer range if close
