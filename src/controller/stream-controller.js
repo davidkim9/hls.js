@@ -1492,7 +1492,7 @@ _checkBuffer() {
                   logger.warn(`playback stalling in low buffer @${currentTime}`);
                   hls.trigger(Event.ERROR, {type: ErrorTypes.MEDIA_ERROR, details: ErrorDetails.BUFFER_STALLED_ERROR, fatal: false, buffer : bufferLen});
                 }
-                if(currentTime < this.initialOffsetPTS !== null) {
+                if(currentTime < this.initialOffsetPTS) {
                   // seek to the first buffer position if currentTime is less than the first buffer
                   logger.log(`adjust currentTime from ${currentTime} to startPTS ${this.initialOffsetPTS}`);
                   media.currentTime = currentTime = this.initialOffsetPTS;
