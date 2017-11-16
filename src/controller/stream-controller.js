@@ -54,6 +54,7 @@ class StreamController extends EventHandler {
     this.ticks = 0;
     this._state = State.STOPPED;
     this.ontick = this.tick.bind(this);
+    this.initialOffsetPTS = null;
   }
 
   destroy() {
@@ -1133,10 +1134,13 @@ class StreamController extends EventHandler {
 
       // Detect gaps in a fragment  and try to fix it by finding a keyframe in the previous fragment (see _findFragments)
       if(data.type === 'video') {
+        const levelDetails = level.details;
+        if(frag.sn === levelDetails.startSN) {
+          this.initialOffsetPTS = data.startPTS;
+        }
         frag.dropped = data.dropped;
         if (frag.dropped) {
           if (!frag.backtracked) {
-            const levelDetails = level.details;
             if (levelDetails && frag.sn === levelDetails.startSN) {
               logger.warn('missing video frame(s) on first frag, appending with gap');
             } else {
@@ -1439,6 +1443,9 @@ _checkBuffer() {
           if(startNotBufferedButClose) {
             startPosition = firstbufferedPosition;
             logger.log(`target start position not buffered, seek to buffered.start(0) ${startPosition}`);
+          } else if(currentTime === 0 && this.initialOffsetPTS !== null) {
+            startPosition = this.initialOffsetPTS;
+            logger.log(`initial start position is shifted, seek to startPTS ${startPosition}`);
           }
           logger.log(`adjust currentTime from ${currentTime} to ${startPosition}`);
           media.currentTime = startPosition;
@@ -1484,6 +1491,11 @@ _checkBuffer() {
                   this.stallReported = true;
                   logger.warn(`playback stalling in low buffer @${currentTime}`);
                   hls.trigger(Event.ERROR, {type: ErrorTypes.MEDIA_ERROR, details: ErrorDetails.BUFFER_STALLED_ERROR, fatal: false, buffer : bufferLen});
+                }
+                if(currentTime < this.initialOffsetPTS !== null) {
+                  // seek to the first buffer position if currentTime is less than the first buffer
+                  logger.log(`adjust currentTime from ${currentTime} to startPTS ${this.initialOffsetPTS}`);
+                  media.currentTime = currentTime = this.initialOffsetPTS;
                 }
                 // if buffer len is below threshold, try to jump to start of next buffer range if close
                 // no buffer available @ currentTime, check if next buffer is close (within a config.maxSeekHole second range)
